@@ -1,0 +1,48 @@
+name: "SBOM to ACR"
+description: "Generate & push SBOM to ACR"
+
+inputs:
+  app_name:
+    description: "Name of application"
+    required: true
+  acr_registry:
+    description: "Server login path for registry"
+    required: true
+  acr_repo:
+    description: "Repository within registry to target"
+    required: true
+  subject_img:
+    description: "Full path of subject image with tag"
+    required: true
+  framework:
+    description: "framework used to build project"
+    required: true
+  acr_name:
+    description: "azure container registry name"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Generate SBOM
+      shell: bash
+      run : ./scripts/generate-sbom.sh
+      env:
+        PROJECT_NAME: ${{ inputs.app_name }}
+        FRAMEWORK: ${{ inputs.framework }}
+        IMAGE: ${{ inputs.subject_img }}
+        PIPELINE: ghactions
+        SBOM_DIR: ${{ github.workspace }}
+        SHA: ${{ github.sha }}
+
+    - name: Push SBOM
+      run: ./scripts/oras-attach.sh
+      if: ${{ success() }} # all steps before must succeed
+      shell: bash
+      env:
+        ACR_NAME: ${{ inputs.acr_name }}
+        IMAGE: ${{ inputs.subject_img }}
+        ARTIFACT: ${{ inputs.app_name }}.spdx.json
+        MEDIA_TYPE: application/spdx+json

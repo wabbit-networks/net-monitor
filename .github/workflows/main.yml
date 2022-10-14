@@ -1,0 +1,119 @@
+name: Main
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/**"
+  release:
+    types: [released, published]
+
+jobs:
+  acr:
+    name: "Registry Target:: ACR"
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - app: "net-monitor"
+            framework: "bash"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install tooling (ORAS, Notation, Msft SBOM tool, Trivy)
+        shell: bash
+        run: |
+          ./scripts/oras-install.sh
+          ./scripts/notation-install.sh
+          ./scripts/msft-sbom-install.sh
+          ./scripts/trivy-install.sh
+
+      - name: Set ACR registry and repository variables
+        shell: bash
+        env:
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+          APP_NAME: ${{ matrix.app }}
+        run: |
+          echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
+          echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
+
+      - name: Extract tag for image
+        id: meta
+        uses: docker/metadata-action@69f6fc9d46f2f8bf0d5491e4aabe0bb8c6a4678a
+        with:
+          images: ${{ env.acr_reg }}/${{ env.acr_repo }}
+          tags: |
+            type=sha,prefix=
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Retrieve AKV key cert pair.
+        run: ./scripts/akv-private-key.sh
+        shell: bash
+        env:
+          SECRET_ID: ${{ secrets.CERT_SECRET_URI }}
+
+      - name: Build image and push with Docker
+        run: ./scripts/image-build-push.sh
+        env:
+          PROJECT_CONTEXT: ./src/${{ matrix.app }}
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+          IMAGE: ${{ steps.meta.outputs.tags }}
+          REGISTRY: ${{ env.acr_reg }}
+
+      - name: Sign Image
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+
+      - name: Generate and push SBOM
+        uses: ./.github/actions/generate-and-push-sbom-acr
+        with:
+          app_name: ${{ matrix.app }}
+          framework: ${{ matrix.framework }}
+          acr_registry: ${{ env.acr_reg }}
+          acr_repo: ${{ env.acr_repo }}
+          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+
+      - name: Sign SBOM
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+
+      - name: Vulnerability Scan (Trivy) and Push to ACR
+        uses: ./.github/actions/vulnerability-scanning
+        with:
+          acr_registry: ${{ env.acr_reg }}
+          acr_repo: ${{ env.acr_repo }}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          app_name: ${{ matrix.app }}
+          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+
+      - name: Sign Vulnerability Scan
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+
+      - name: Log out
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az logout
+            az cache purge
+            az account clear

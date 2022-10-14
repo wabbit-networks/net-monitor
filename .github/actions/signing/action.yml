@@ -1,0 +1,26 @@
+name: "Sign Artifacts"
+description: "Sign Artifacts using Azure KV keys and notation"
+
+inputs:
+  artifact:
+    description: "Full Path to artifact to be signed (usually container Image or SBOM) with tag"
+    required: true
+  manifest_type:
+    description: "artifact manifest type"
+    required: true
+  acr_name:
+    description: "azure container registry name"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Sign Artifact
+      run: ./scripts/notation-sign.sh
+      shell: bash
+      env:
+        ARTIFACT: ${{ inputs.artifact }}
+        MANIFEST_TYPE: ${{ inputs.manifest_type }}
+        ACR_NAME: ${{ inputs.acr_name }}
