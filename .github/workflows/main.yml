@@ -36,7 +36,7 @@ jobs:
         shell: bash
         env:
           ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-          # APP_NAME: ${{ matrix.app }}
+          APP_NAME: 'net-monitor'
         run: |
           echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
           echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
@@ -89,7 +89,7 @@ jobs:
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
         with:
-          # app_name: ${{ matrix.app }}
+          app_name: 'net-monitor'
           # framework: ${{ matrix.framework }}
           acr_registry: ${{ env.acr_reg }}
           acr_repo: ${{ env.acr_repo }}
@@ -109,7 +109,7 @@ jobs:
           acr_registry: ${{ env.acr_reg }}
           acr_repo: ${{ env.acr_repo }}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          # app_name: ${{ matrix.app }}
+          app_name: 'net-monitor'
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
 
       # - name: Sign Vulnerability Scan
