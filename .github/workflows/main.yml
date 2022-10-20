@@ -29,7 +29,6 @@ jobs:
         shell: bash
         run: |
           ./scripts/oras-install.sh
-          ./scripts/notation-install.sh
           ./scripts/msft-sbom-install.sh
           ./scripts/trivy-install.sh
 
@@ -57,11 +56,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Retrieve AKV key cert pair.
-        run: ./scripts/akv-private-key.sh
-        shell: bash
-        env:
-          SECRET_ID: ${{ secrets.CERT_SECRET_URI }}
+      - name: Setup Notation with azure-kv plugin
+        uses: Duffney/setup-notation@v0.1.0
+        with:
+          version: '0.11.0-alpha.4'
+          key_name: 'example'
+          certificate_key_id: 'https://rg-kv.vault.azure.net/keys/certname/2c12753ba2b44646bd27d4d447020018'
+          plugin_name: 'notation-azure-kv'
+          plugin_version: 'v0.4.0-alpha.4'
+
+      # - name: Retrieve AKV key cert pair.
+      #   run: ./scripts/akv-private-key.sh
+      #   shell: bash
+      #   env:
+      #     SECRET_ID: ${{ secrets.CERT_SECRET_URI }}
 
       - name: Build image and push with Docker
         run: ./scripts/image-build-push.sh

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ORAS_PATH=/usr/local/bin/oras
-ORAS_VERSION=0.15.0
+ORAS_VERSION=0.15.1
 
 # look for version string
 oras version | grep $ORAS_VERSION

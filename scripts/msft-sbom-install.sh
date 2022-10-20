@@ -1,7 +1,7 @@
 #!/bin/bash
 
 MSFT_SBOM_PATH=/usr/local/bin/msft-sbom
-MSFT_SBOM_VERSION=0.1.2
+MSFT_SBOM_VERSION=0.2.6
 
 # check if msft-sbom exists
 which msft-sbom

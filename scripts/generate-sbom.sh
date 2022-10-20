@@ -16,7 +16,7 @@ msft-sbom generate \
 -bc $PUBLISH_DIR \
 -di $IMAGE \
 -m $SBOM_DIR \
--nsb http://sssc.platforms-cse.com \
+-nsb http://wabbitnetworks.io \
 -nsu $PROJECT_NAME \
 -pn $PIPELINE.$PROJECT_NAME \
 -pv $VERSION
