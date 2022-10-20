@@ -6,14 +6,14 @@ set -e
 VERSION=${SHA::6}
 
 # set default PROJECT directory unless supplied
-: ${PROJECT_DIR:=./src/$PROJECT_NAME}
+# : ${PROJECT_DIR:=./src/$PROJECT_NAME}
 
 # set a default PUBLISH directory unless supplied.
-: ${PUBLISH_DIR:=$PROJECT_DIR}
+# : ${PUBLISH_DIR:=$PROJECT_DIR}
 
 msft-sbom generate \
--b $PROJECT_DIR \
--bc $PUBLISH_DIR \
+-b . \
+-bc . \
 -di $IMAGE \
 -m $SBOM_DIR \
 -nsb http://wabbitnetworks.io \

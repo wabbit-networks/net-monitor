@@ -16,11 +16,11 @@ jobs:
     permissions:
       id-token: write
       contents: write
-    strategy:
-      matrix:
-        include:
-          - app: "net-monitor"
-            framework: "bash"
+    # strategy:
+    #   matrix:
+    #     include:
+    #       - app: "net-monitor"
+    #         framework: "bash"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -36,7 +36,7 @@ jobs:
         shell: bash
         env:
           ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-          APP_NAME: ${{ matrix.app }}
+          # APP_NAME: ${{ matrix.app }}
         run: |
           echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
           echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
@@ -74,7 +74,7 @@ jobs:
       - name: Build image and push with Docker
         run: ./scripts/image-build-push.sh
         env:
-          PROJECT_CONTEXT: ./src/${{ matrix.app }}
+          # PROJECT_CONTEXT: ./src/${{ matrix.app }}
           ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
           IMAGE: ${{ steps.meta.outputs.tags }}
           REGISTRY: ${{ env.acr_reg }}
@@ -89,8 +89,8 @@ jobs:
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
         with:
-          app_name: ${{ matrix.app }}
-          framework: ${{ matrix.framework }}
+          # app_name: ${{ matrix.app }}
+          # framework: ${{ matrix.framework }}
           acr_registry: ${{ env.acr_reg }}
           acr_repo: ${{ env.acr_repo }}
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
@@ -109,7 +109,7 @@ jobs:
           acr_registry: ${{ env.acr_reg }}
           acr_repo: ${{ env.acr_repo }}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          app_name: ${{ matrix.app }}
+          # app_name: ${{ matrix.app }}
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
 
       # - name: Sign Vulnerability Scan
