@@ -56,14 +56,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup Notation with azure-kv plugin
-        uses: Duffney/setup-notation@v0.1.0
-        with:
-          version: '0.11.0-alpha.4'
-          key_name: 'wabbit-networks-io'
-          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
-          plugin_name: 'notation-azure-kv'
-          plugin_version: 'v0.4.0-alpha.4'
+      # - name: Setup Notation with azure-kv plugin
+      #   uses: Duffney/setup-notation@v0.1.0
+      #   with:
+      #     version: '0.11.0-alpha.4'
+      #     key_name: 'wabbit-networks-io'
+      #     certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
+      #     plugin_name: 'notation-azure-kv'
+      #     plugin_version: 'v0.4.0-alpha.4'
 
       # - name: Retrieve AKV key cert pair.
       #   run: ./scripts/akv-private-key.sh
@@ -79,12 +79,12 @@ jobs:
           IMAGE: ${{ steps.meta.outputs.tags }}
           REGISTRY: ${{ env.acr_reg }}
 
-      - name: Sign Image
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+      # - name: Sign Image
+      #   uses: ./.github/actions/signing
+      #   with:
+      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      #     manifest_type: application/vnd.docker.distribution.manifest.v2+json
 
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
@@ -96,12 +96,12 @@ jobs:
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
 
-      - name: Sign SBOM
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+      # - name: Sign SBOM
+      #   uses: ./.github/actions/signing
+      #   with:
+      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
 
       - name: Vulnerability Scan (Trivy) and Push to ACR
         uses: ./.github/actions/vulnerability-scanning
@@ -112,12 +112,12 @@ jobs:
           app_name: ${{ matrix.app }}
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
 
-      - name: Sign Vulnerability Scan
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+      # - name: Sign Vulnerability Scan
+      #   uses: ./.github/actions/signing
+      #   with:
+      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
 
       - name: Log out
         uses: azure/CLI@v1
