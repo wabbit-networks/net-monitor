@@ -71,13 +71,24 @@ jobs:
       #   env:
       #     SECRET_ID: ${{ secrets.CERT_SECRET_URI }}
 
-      - name: Build image and push with Docker
-        run: ./scripts/image-build-push.sh
-        env:
-          # PROJECT_CONTEXT: ./src/${{ matrix.app }}
-          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-          IMAGE: ${{ steps.meta.outputs.tags }}
-          REGISTRY: ${{ env.acr_reg }}
+      # - name: Build image and push with Docker
+      #   run: ./scripts/image-build-push.sh
+      #   env:
+      #     # PROJECT_CONTEXT: ./src/${{ matrix.app }}
+      #     ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+      #     IMAGE: ${{ steps.meta.outputs.tags }}
+      #     REGISTRY: ${{ env.acr_reg }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: false
+          tags: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
 
       # - name: Sign Image
       #   uses: ./.github/actions/signing
