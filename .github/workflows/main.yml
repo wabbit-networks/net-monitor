@@ -30,7 +30,7 @@ jobs:
         run: |
           ./scripts/oras-install.sh
           ./scripts/msft-sbom-install.sh
-          # ./scripts/trivy-install.sh
+          ./scripts/trivy-install.sh
 
       - name: Set ACR registry and repository variables
         shell: bash
@@ -122,13 +122,13 @@ jobs:
       #     $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn net-monitor -pv $GITHUB_REF_NAME -ps 'Wabbit Networks' -nsb https://wabbit-networks.io -V Verbose
       #     cp ${{ github.workspace }}/_manifest/spdx_2.2/manifest.spdx.json ${{ github.workspace }}/net-monitor.spdx.json
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        continue-on-error: true
-        with:
-          image-ref: '${{ env.acr_reg }}/${{ env.acr_repo }}:temp'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+      # - name: Run Trivy vulnerability scanner
+      #   uses: aquasecurity/trivy-action@master
+      #   continue-on-error: true
+      #   with:
+      #     image-ref: '${{ env.acr_reg }}/${{ env.acr_repo }}:temp'
+      #     format: 'sarif'
+      #     output: 'trivy-results.sarif'
 
       - name: Push vulnerability scan
         run: ./scripts/oras-attach.sh
@@ -145,14 +145,14 @@ jobs:
       #   with:
       #     sarif_file: 'trivy-results.sarif'
 
-      # - name: Vulnerability Scan (Trivy) and Push to ACR
-      #   uses: ./.github/actions/vulnerability-scanning
-      #   with:
-      #     acr_registry: ${{ env.acr_reg }}
-      #     acr_repo: ${{ env.acr_repo }}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     app_name: 'net-monitor'
-      #     subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+      - name: Vulnerability Scan (Trivy) and Push to ACR
+        uses: ./.github/actions/vulnerability-scanning
+        with:
+          acr_registry: ${{ env.acr_reg }}
+          acr_repo: ${{ env.acr_repo }}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          app_name: 'net-monitor'
+          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
 
       - name: Sign SBOM
