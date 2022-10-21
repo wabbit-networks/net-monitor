@@ -87,7 +87,22 @@ jobs:
           context: .
           push: true
           tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-
+      - name: Setup Notation with azure-kv plugin
+        uses: Duffney/setup-notation@v0.1.0
+        continue-on-error: true
+        with:
+          version: '0.11.0-alpha.4'
+          key_name: 'wabbit-networks-io'
+          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
+          plugin_name: 'notation-azure-kv'
+          plugin_version: '0.4.0-alpha.4'
+      - name: Sign Image
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+          notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
         continue-on-error: true
@@ -139,21 +154,7 @@ jobs:
       #     app_name: 'net-monitor'
       #     subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      - name: Setup Notation with azure-kv plugin
-        uses: Duffney/setup-notation@v0.1.0
-        continue-on-error: true
-        with:
-          version: '0.11.0-alpha.4'
-          key_name: 'wabbit-networks-io'
-          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
-          plugin_name: 'notation-azure-kv'
-          plugin_version: '0.4.0-alpha.4'
-      - name: Sign Image
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+
       - name: Sign SBOM
         uses: ./.github/actions/signing
         continue-on-error: true
@@ -161,13 +162,14 @@ jobs:
           artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+          notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
       - name: Sign Vulnerability Scan
         uses: ./.github/actions/signing
         with:
           artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
-
+          notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
       - name: Log out
         uses: azure/CLI@v1
         with:
