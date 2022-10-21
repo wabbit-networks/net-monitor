@@ -9,6 +9,10 @@ on:
     types: [released, published]
   workflow_dispatch:
 
+env:
+  NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
+  NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
+
 jobs:
   acr:
     name: "Registry Target:: ACR"
@@ -55,20 +59,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      # - name: Retrieve AKV key cert pair.
-      #   run: ./scripts/akv-private-key.sh
-      #   shell: bash
-      #   env:
-      #     SECRET_ID: ${{ secrets.CERT_SECRET_URI }}
-
-      # - name: Build image and push with Docker
-      #   run: ./scripts/image-build-push.sh
-      #   env:
-      #     # PROJECT_CONTEXT: ./src/${{ matrix.app }}
-      #     ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-      #     IMAGE: ${{ steps.meta.outputs.tags }}
-      #     REGISTRY: ${{ env.acr_reg }}
 
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v2
@@ -118,14 +108,6 @@ jobs:
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
 
-      # - name: Generate SBOM
-      #   continue-on-error: true
-      #   run: |
-      #     curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
-      #     chmod +x $RUNNER_TEMP/sbom-tool
-      #     $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn net-monitor -pv $GITHUB_REF_NAME -ps 'Wabbit Networks' -nsb https://wabbit-networks.io -V Verbose
-      #     cp ${{ github.workspace }}/_manifest/spdx_2.2/manifest.spdx.json ${{ github.workspace }}/net-monitor.spdx.json
-
       # - name: Run Trivy vulnerability scanner
       #   uses: aquasecurity/trivy-action@master
       #   continue-on-error: true
@@ -147,16 +129,6 @@ jobs:
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           app_name: 'net-monitor'
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-
-      # - name: Push vulnerability scan
-      #   run: ./scripts/oras-attach.sh
-      #   continue-on-error: true
-      #   shell: bash
-      #   env:
-      #     ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-      #     IMAGE: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-      #     ARTIFACT: trivy-results.sarif
-      #     MEDIA_TYPE: application/sarif+json
 
       - name: Sign SBOM
         uses: ./.github/actions/signing
