@@ -22,6 +22,6 @@ fi
 # export USER_NAME="00000000-0000-0000-0000-000000000000"
 # export NOTATION_PASSWORD=$TOKEN
 
-notation key ls
-notation key add --name wabbit-networks-io --plugin azure-kv --id $NOTATION_KEY_ID --default
+# notation key ls
+# notation key add --name wabbit-networks-io --plugin azure-kv --id $NOTATION_KEY_ID --default
 notation sign --media-type $MANIFEST_TYPE $ARTIFACT

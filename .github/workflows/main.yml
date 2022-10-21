@@ -98,11 +98,6 @@ jobs:
           plugin_name: 'notation-azure-kv'
           plugin_version: '0.4.0-alpha.4'
 
-      - name: Debug key not added
-        continue-on-error: true
-        run: |
-          notation key ls
-
       - name: Sign Image
         uses: ./.github/actions/signing
         continue-on-error: true
@@ -153,15 +148,15 @@ jobs:
           app_name: 'net-monitor'
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      - name: Push vulnerability scan
-        run: ./scripts/oras-attach.sh
-        continue-on-error: true
-        shell: bash
-        env:
-          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-          IMAGE: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-          ARTIFACT: trivy-results.sarif
-          MEDIA_TYPE: application/sarif+json
+      # - name: Push vulnerability scan
+      #   run: ./scripts/oras-attach.sh
+      #   continue-on-error: true
+      #   shell: bash
+      #   env:
+      #     ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+      #     IMAGE: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+      #     ARTIFACT: trivy-results.sarif
+      #     MEDIA_TYPE: application/sarif+json
 
       - name: Sign SBOM
         uses: ./.github/actions/signing
