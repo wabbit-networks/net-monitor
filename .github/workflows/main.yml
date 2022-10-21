@@ -87,18 +87,18 @@ jobs:
           plugin_version: '0.4.0-alpha.4'
 
       - name: Notation Sign image inline script
-        continue-on-error: true
+        continue-on-error: false
         run: |
           export NOTATION_USERNAME="00000000-0000-0000-0000-000000000000"
           export NOTATION_PASSWORD=${{ secrets.NOTATION_PASSWORD }}
           notation sign --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.acr_reg }}/${{ env.acr_repo }}:temp 
 
-      - name: Sign Image
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+      # - name: Sign Image
+      #   uses: ./.github/actions/signing
+      #   with:
+      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      #     manifest_type: application/vnd.docker.distribution.manifest.v2+json
 
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
