@@ -88,13 +88,6 @@ jobs:
           push: true
           tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      # - name: Sign Image
-      #   uses: ./.github/actions/signing
-      #   with:
-      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     manifest_type: application/vnd.docker.distribution.manifest.v2+json
-
       - name: Generate and push SBOM
         uses: ./.github/actions/generate-and-push-sbom-acr
         continue-on-error: true
@@ -114,13 +107,6 @@ jobs:
       #     $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn net-monitor -pv $GITHUB_REF_NAME -ps 'Wabbit Networks' -nsb https://wabbit-networks.io -V Verbose
       #     cp ${{ github.workspace }}/_manifest/spdx_2.2/manifest.spdx.json ${{ github.workspace }}/net-monitor.spdx.json
 
-      # - name: Sign SBOM
-      #   uses: ./.github/actions/signing
-      #   with:
-      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         continue-on-error: true
@@ -128,14 +114,21 @@ jobs:
           image-ref: '${{ env.acr_reg }}/${{ env.acr_repo }}:temp'
           format: 'sarif'
           output: 'trivy-results.sarif'
-        # env:
-        #   TRIVY_USERNAME: Username
-        #   TRIVY_PASSWORD: Password
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
+      - name: Push vulnerability scan
+        run: ./scripts/oras-attach.sh
+        continue-on-error: true
+        shell: bash
+        env:
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+          IMAGE: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+          ARTIFACT: trivy-results.sarif
+          MEDIA_TYPE: application/sarif+json
+
+      # - name: Upload Trivy scan results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v2
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
 
       # - name: Vulnerability Scan (Trivy) and Push to ACR
       #   uses: ./.github/actions/vulnerability-scanning
@@ -146,13 +139,6 @@ jobs:
       #     app_name: 'net-monitor'
       #     subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      # - name: Sign Vulnerability Scan
-      #   uses: ./.github/actions/signing
-      #   with:
-      #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
-
       - name: Setup Notation with azure-kv plugin
         uses: Duffney/setup-notation@v0.1.0
         continue-on-error: true
@@ -162,6 +148,25 @@ jobs:
           certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
           plugin_name: 'notation-azure-kv'
           plugin_version: '0.4.0-alpha.4'
+      - name: Sign Image
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.docker.distribution.manifest.v2+json
+      - name: Sign SBOM
+        uses: ./.github/actions/signing
+        continue-on-error: true
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+      - name: Sign Vulnerability Scan
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
 
       - name: Log out
         uses: azure/CLI@v1
