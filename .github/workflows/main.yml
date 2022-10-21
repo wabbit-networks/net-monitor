@@ -98,8 +98,9 @@ jobs:
           plugin_version: '0.4.0-alpha.4'
       - name: Sign Image
         uses: ./.github/actions/signing
+        continue-on-error: true
         with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.IMAGE_DIGEST}}
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.docker.distribution.manifest.v2+json
           notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
@@ -159,14 +160,14 @@ jobs:
         uses: ./.github/actions/signing
         continue-on-error: true
         with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
           notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
       - name: Sign Vulnerability Scan
         uses: ./.github/actions/signing
         with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
+          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
           notation_key_id: $${{ secrets.NOTATION_KEY_ID }}
