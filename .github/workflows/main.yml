@@ -56,16 +56,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup Notation with azure-kv plugin
-        uses: Duffney/setup-notation@v0.1.0
-        continue-on-error: true
-        with:
-          version: '0.11.0-alpha.4'
-          key_name: 'wabbit-networks-io'
-          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
-          plugin_name: 'notation-azure-kv'
-          plugin_version: '0.4.0-alpha.4'
-
       # - name: Retrieve AKV key cert pair.
       #   run: ./scripts/akv-private-key.sh
       #   shell: bash
@@ -80,10 +70,16 @@ jobs:
       #     IMAGE: ${{ steps.meta.outputs.tags }}
       #     REGISTRY: ${{ env.acr_reg }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+      - name: Login to ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.acr_reg }
+          username: ${{ secrets.AZURE_NET_MONITOR_SP }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
       - name: Build and push
         uses: docker/build-push-action@v3
         continue-on-error: true
@@ -156,6 +152,16 @@ jobs:
       #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}@${{env.PUSHED_DIGEST}}
       #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
       #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+
+      - name: Setup Notation with azure-kv plugin
+        uses: Duffney/setup-notation@v0.1.0
+        continue-on-error: true
+        with:
+          version: '0.11.0-alpha.4'
+          key_name: 'wabbit-networks-io'
+          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
+          plugin_name: 'notation-azure-kv'
+          plugin_version: '0.4.0-alpha.4'
 
       - name: Log out
         uses: azure/CLI@v1
