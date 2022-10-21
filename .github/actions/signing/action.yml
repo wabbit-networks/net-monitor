@@ -11,6 +11,9 @@ inputs:
   acr_name:
     description: "azure container registry name"
     required: true
+  notation_key_id:
+    description: "Azure key vault key id to sign with"
+    required: true
 
 runs:
   using: "composite"
@@ -24,3 +27,4 @@ runs:
         ARTIFACT: ${{ inputs.artifact }}
         MANIFEST_TYPE: ${{ inputs.manifest_type }}
         ACR_NAME: ${{ inputs.acr_name }}
+        NOTATION_KEY_ID: ${{ inputs.notation_key_id }}
