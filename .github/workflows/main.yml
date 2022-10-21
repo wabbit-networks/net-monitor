@@ -124,7 +124,7 @@ jobs:
           acr_repo: ${{ env.acr_repo }}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           app_name: 'net-monitor'
-          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}@temp
+          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
       # - name: Sign Vulnerability Scan
       #   uses: ./.github/actions/signing
