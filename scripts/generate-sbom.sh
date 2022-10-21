@@ -19,7 +19,7 @@ msft-sbom generate \
 -nsb http://wabbitnetworks.io \
 -nsu $PROJECT_NAME \
 -pn $PIPELINE.$PROJECT_NAME \
--pv $VERSION
+-pv $VERSION \
 -ps 'Wabbit Networks'
 
 cp $SBOM_DIR/_manifest/spdx_2.2/manifest.spdx.json $SBOM_DIR/$PROJECT_NAME.spdx.json

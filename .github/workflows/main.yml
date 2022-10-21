@@ -30,7 +30,7 @@ jobs:
         run: |
           ./scripts/oras-install.sh
           ./scripts/msft-sbom-install.sh
-          ./scripts/trivy-install.sh
+          # ./scripts/trivy-install.sh
 
       - name: Set ACR registry and repository variables
         shell: bash
@@ -89,7 +89,7 @@ jobs:
         continue-on-error: true
         with:
           context: .
-          push: false
+          push: true
           tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
       # - name: Sign Image
@@ -110,6 +110,14 @@ jobs:
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
 
+      - name: Generate SBOM
+        continue-on-error: true
+        run: |
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn net-monitor -pv $GITHUB_REF_NAME -ps 'Wabbit Networks' -nsb https://wabbit-networks.io -V Verbose
+          cp ${{ github.workspace }}/_manifest/spdx_2.2/manifest.spdx.json ${{ github.workspace }}/net-monitor.spdx.json
+
       # - name: Sign SBOM
       #   uses: ./.github/actions/signing
       #   with:
@@ -117,14 +125,30 @@ jobs:
       #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
       #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
 
-      - name: Vulnerability Scan (Trivy) and Push to ACR
-        uses: ./.github/actions/vulnerability-scanning
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
-          acr_registry: ${{ env.acr_reg }}
-          acr_repo: ${{ env.acr_repo }}
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          app_name: 'net-monitor'
-          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+          image-ref: '${{ env.acr_reg }}/${{ env.acr_repo }}:temp'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        # env:
+        #   TRIVY_USERNAME: Username
+        #   TRIVY_PASSWORD: Password
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # - name: Vulnerability Scan (Trivy) and Push to ACR
+      #   uses: ./.github/actions/vulnerability-scanning
+      #   with:
+      #     acr_registry: ${{ env.acr_reg }}
+      #     acr_repo: ${{ env.acr_repo }}
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      #     app_name: 'net-monitor'
+      #     subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
       # - name: Sign Vulnerability Scan
       #   uses: ./.github/actions/signing
