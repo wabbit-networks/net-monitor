@@ -24,6 +24,6 @@ fi
 
 notation plugin ls
 notation key ls
-notation key add --name wabbit-networks-io --plugin azure-kv --id $NOTATION_KEY_ID
+notation key add --name wabbit-networks-io --plugin azure-kv --id $NOTATION_KEY_ID --default
 notation key ls
 notation sign --media-type $MANIFEST_TYPE $ARTIFACT
