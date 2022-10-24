@@ -20,6 +20,8 @@ runs:
     - name: Attach artifact and return digest
       shell: bash
       run: |
+        pwd
+        find .
         if [[ -z $ARTIFACT_TYPE ]]; then
           case $MEDIA_TYPE in
 
