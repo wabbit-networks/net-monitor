@@ -106,10 +106,16 @@ jobs:
           notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
 
+      - name: Login to ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REMOTE_REGISTRY }}
+          username: ${{ secrets.AZURE_NET_MONITOR_SP }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
       - name: Copy local image and all artifacts to remote registry
         run: |
-          oras version
-          oras login -u "00000000-0000-0000-0000-000000000000" --password-stdin ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
+          # oras login -u "00000000-0000-0000-0000-000000000000" --password-stdin ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
           oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -r
           oras discover ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
 
