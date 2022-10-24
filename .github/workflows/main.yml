@@ -10,11 +10,12 @@ on:
   workflow_dispatch:
 
 env:
-  NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
-  NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
+  # NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
+  # NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
   APP_NAME: 'net-monitor'
   TAG: oras
   LOCAL_REGISTRY: 'localhost:5000'
+  REMOTE_REGISTRY: 'wabbitnetworks.azurecr.io'
 
 jobs:
   acr:
@@ -31,31 +32,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      # TODO: remove section and install inline like in sbom-tool, top-level env version
-      - name: Install tooling (ORAS, Notation, Msft SBOM tool, Trivy) 
-        shell: bash
-        run: |
-          ./scripts/oras-install.sh
-          # ./scripts/msft-sbom-install.sh
-          ./scripts/trivy-install.sh
-
-      # TODO: cleanup section, move to top-level ENV if needed
-      - name: Set ACR registry and repository variables
-        shell: bash
-        env:
-          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-        run: |
-          echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
-          echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
-
-      #  TODO: Not sure we will end up using this.  If not, remove.
-      # - name: Extract tag for image
-      #   id: meta
-      #   uses: docker/metadata-action@57396166ad8aefe6098280995947635806a0e6ea # v4.1.1
-      #   with:
-      #     images: ${{ env.acr_reg }}/${{ env.acr_repo }}
-      #     tags: |
-      #       type=sha,prefix=
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -66,14 +42,12 @@ jobs:
           docker build -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
           docker push ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
 
-      # Need to login in order to gain access to AKV key for signing
       - name: Azure Login
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}   
-
       - name: Setup Notation with azure-kv plugin
         uses: Duffney/setup-notation@v0.1.1
         with:
@@ -82,20 +56,12 @@ jobs:
           certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
           plugin_name: 'notation-azure-kv'
           plugin_version: '0.4.0-alpha.4'
-
       - name: Notation sign image
         continue-on-error: true
         run: |
           notation sign --envelope-type cose --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
-      # - name: Generate and push SBOM
-      #   uses: ./.github/actions/generate-and-push-sbom-acr
-      #   with:
-      #     app_name: ${{ env.APP_NAME }}
-      #     acr_registry: ${{ env.acr_reg }}
-      #     acr_repo: ${{ env.acr_repo }}
-      #     subject_img:  ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+
       - name: Install and Generate SBOM
         run: |
           MSFT_SBOM_VERSION=0.2.6
@@ -113,26 +79,6 @@ jobs:
           notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
 
-      # - name: Run Trivy vulnerability scanner
-      #   uses: aquasecurity/trivy-action@master
-      #   with:
-      #     image-ref: '${{ env.acr_reg }}/${{ env.acr_repo }}:temp'
-      #     format: 'sarif'
-      #     output: 'trivy-results.sarif'
-
-      # - name: Upload Trivy scan results to GitHub Security tab
-      #   uses: github/codeql-action/upload-sarif@v2
-      #   with:
-      #     sarif_file: 'trivy-results.sarif'
-
-      # - name: Vulnerability Scan (Trivy) and Push to Registry
-      #   uses: ./.github/actions/vulnerability-scanning
-      #   with:
-      #     acr_registry: ${{ env.acr_reg }}
-      #     acr_repo: ${{ env.acr_repo }}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     app_name: 'net-monitor'
-      #     subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
       - name: Install trivy and generate vuln scan
         run: |
           TRIVY_VERSION=0.32.1
@@ -140,6 +86,10 @@ jobs:
           tar xvzf trivy.tar.gz trivy
           cp trivy /usr/local/bin/trivy
           trivy image -f sarif -o trivy-results.sarif --exit-code 0 ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+      # - name: Upload Trivy scan results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v2
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
       - name: Oras attach vuln scan
         uses: ./.github/actions/oras-attach
         with:
@@ -150,30 +100,11 @@ jobs:
         run: |
           notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
-      # - name: Sign Vulnerability Scan
-      #   uses: ./.github/actions/signing
-      #   with:
-      #     artifact: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
-      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
-      #     manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
-
-      # TODO: Figure out least amount of configuration needed for oras copy to work to push to ACR
-      # - name: Login to ACR
-      #   uses: docker/login-action@v2
-      #   with:
-      #     registry: ${{ env.acr_reg }}
-      #     username: ${{ secrets.AZURE_NET_MONITOR_SP }}
-      #     password: ${{ secrets.AZURE_CLIENT_SECRET }}
-      # - name: Build and push
-      #   uses: docker/build-push-action@v3
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
       - name: Copy local image and all artifacts to ACR
         run: |
-          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.acr_reg }}/${{ env.acr_repo }}:${{ env.TAG }} -r
+          oras login -p ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
+          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -r
 
       - name: Log out
         uses: azure/CLI@v1

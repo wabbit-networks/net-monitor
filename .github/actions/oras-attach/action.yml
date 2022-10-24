@@ -29,11 +29,10 @@ runs:
           esac
         fi
         ORAS_OUTPUT=$(oras attach $IMAGE $ARTIFACT:$MEDIA_TYPE --artifact-type $ARTIFACT_TYPE)
-        ls
-        echo $ORAS_OUTPUT
+        echo 'ORAS output: ' $ORAS_OUTPUT
         DIGEST_VALUE=$(echo "$ORAS_OUTPUT" | grep -o -P '(?<=Digest: )sha256:\w*') # this should be the final raw digest value
         echo "PUSHED_DIGEST=$DIGEST_VALUE" >> $GITHUB_ENV
-        echo $DIGEST_VALUE
+        echo 'Digest value: ' $DIGEST_VALUE
       env:
         ARTIFACT: ${{ inputs.artifact }}
         IMAGE: ${{ inputs.subject_img }}
