@@ -81,7 +81,7 @@ jobs:
       - name: Setup local OCI registry
         shell: bash
         run: |
-          docker run --name localreg -d -p 5000:5000 --rm ghcr.io/oras-project/registry:v0.0.3-alpha
+          docker run --name localreg -d -p 5000:5000 --rm ghcr.io/oras-project/registry:v1.0.0-rc.2
           docker buildx build . -t localhost:5000/net-monitor:oras --push
 
       - name: Setup Notation with azure-kv plugin
