@@ -1,0 +1,41 @@
+name: "Attach Artifacts"
+description: "Attach Artifacts using oras"
+
+inputs:
+  artifact:
+    description: "Full Path to artifact to be signed (usually container Image or SBOM) with tag"
+    required: true
+  manifest_type:
+    description: "artifact manifest type"
+    required: true
+  subject_img:
+    description: "Full path of subject image with tag"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Attach Artifact - return digest
+      run: |
+        if [[ -z $ARTIFACT_TYPE ]]; then
+          case $MEDIA_TYPE in
+
+            application/spdx+json)
+              ARTIFACT_TYPE=org.example.sbom.v0
+              ;;
+            application/sarif+json)
+              ARTIFACT_TYPE=org.example.sarif.v0
+              ;;
+          esac
+        fi
+        ORAS_OUTPUT=$(oras attach $IMAGE $ARTIFACT:$MEDIA_TYPE --artifact-type $ARTIFACT_TYPE)
+        DIGEST_VALUE=$(echo "$ORAS_OUTPUT" | grep -o -P '(?<=Digest: )sha256:\w*') # this should be the final raw digest value
+        echo "PUSHED_DIGEST=$DIGEST_VALUE" >> $GITHUB_ENV
+        echo $DIGEST_VALUE
+      env:
+        ARTIFACT: ${{ inputs.artifact }}
+        MANIFEST_TYPE: ${{ inputs.manifest_type }}
+        IMAGE: ${{ inputs.subject_img }}
+        MEDIA_TYPE: ${{ inputs.media_type }}

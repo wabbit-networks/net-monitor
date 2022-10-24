@@ -12,10 +12,13 @@ on:
 env:
   NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
   NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
+  APP_NAME: 'net-monitor'
+  TAG: oras
+  LOCAL_REGISTRY: 'localhost:5000'
 
 jobs:
   acr:
-    name: "Registry Target:: ACR"
+    name: "Secure Supply Chain Container Build to ACR"
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -25,32 +28,28 @@ jobs:
         image: ghcr.io/oras-project/registry:v1.0.0-rc.2
         ports:
           - 5000:5000
-    # strategy:
-    #   matrix:
-    #     include:
-    #       - app: "net-monitor"
-    #         framework: "bash"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+      
+      # TODO: remove section and install inline like in sbom-tool, top-level env version
+      - name: Install tooling (ORAS, Notation, Msft SBOM tool, Trivy) 
+        shell: bash
+        run: |
+          ./scripts/oras-install.sh
+          # ./scripts/msft-sbom-install.sh
+          ./scripts/trivy-install.sh
 
-      # - name: Install tooling (ORAS, Notation, Msft SBOM tool, Trivy)
-      #   shell: bash
-      #   run: |
-      #     ./scripts/oras-install.sh
-      #     ./scripts/msft-sbom-install.sh
-      #     ./scripts/trivy-install.sh
-      #     docker run --name localreg -d -p 5000:5000 --rm ghcr.io/oras-project/registry:v0.0.3-alpha
+      # TODO: cleanup section, move to top-level ENV if needed
+      - name: Set ACR registry and repository variables
+        shell: bash
+        env:
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+        run: |
+          echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
+          echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
 
-      # - name: Set ACR registry and repository variables
-      #   shell: bash
-      #   env:
-      #     ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
-      #     APP_NAME: 'net-monitor'
-      #   run: |
-      #     echo "acr_reg=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
-      #     echo "acr_repo=github/${APP_NAME}" >> $GITHUB_ENV
-
+      #  TODO: Not sure we will end up using this.  If not, remove.
       # - name: Extract tag for image
       #   id: meta
       #   uses: docker/metadata-action@57396166ad8aefe6098280995947635806a0e6ea # v4.1.1
@@ -59,37 +58,14 @@ jobs:
       #     tags: |
       #       type=sha,prefix=
 
-      # - name: Azure Login
-      #   uses: azure/login@v1
-      #   with:
-      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
-      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      # - name: Login to ACR
-      #   uses: docker/login-action@v2
-      #   with:
-      #     registry: ${{ env.acr_reg }}
-      #     username: ${{ secrets.AZURE_NET_MONITOR_SP }}
-      #     password: ${{ secrets.AZURE_CLIENT_SECRET }}
-      # - name: Build and push
-      #   uses: docker/build-push-action@v3
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      - name: Setup local OCI registry
+      - name: Docker build and push net-monitor image
         shell: bash
         run: |
-          # docker run --name localreg -d -p 5000:5000 --rm ghcr.io/oras-project/registry:v1.0.0-rc.2
-          docker ps
-          docker build -t localhost:5000/net-monitor:oras .
-          docker push localhost:5000/net-monitor:oras
+          docker build -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
+          docker push ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
 
       - name: Setup Notation with azure-kv plugin
         uses: Duffney/setup-notation@v0.1.1
@@ -100,22 +76,50 @@ jobs:
           plugin_name: 'notation-azure-kv'
           plugin_version: '0.4.0-alpha.4'
 
+      - name: Notation Sign image inline script
+        continue-on-error: true
+        run: |
+          notation sign --envelope-type cose --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+      # TODO: convert to use the notation sign action when it is ready, for now just use inline script
       # - name: Sign Image
       #   uses: ./.github/actions/signing
       #   with:
       #     artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
       #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
       #     manifest_type: application/vnd.docker.distribution.manifest.v2+json
-
-      - name: Generate and push SBOM
-        uses: ./.github/actions/generate-and-push-sbom-acr
+      # - name: Generate and push SBOM
+      #   uses: ./.github/actions/generate-and-push-sbom-acr
+      #   with:
+      #     app_name: ${{ env.APP_NAME }}
+      #     acr_registry: ${{ env.acr_reg }}
+      #     acr_repo: ${{ env.acr_repo }}
+      #     subject_img:  ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+      #     acr_name: ${{ secrets.AZURE_ACR_NAME }}
+      - name: Install and Generate SBOM
+        continue-on-error: true
+        run: |
+          MSFT_SBOM_VERSION=0.2.6
+          which sbom-tool
+          # if the previous command failed, exit status will be non-zero
+          if [[ $? != 0 ]]; then
+              curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/download/v${MSFT_SBOM_VERSION}/sbom-tool-linux-x64
+              chmod +x $RUNNER_TEMP/sbom-tool
+          fi
+          $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn ${{ env.APP_NAME }} -pv ${{env.TAG}}-$GITHUB_REF_NAME -ps 'wabbit-networks-io' -nsb https://wabbitnetworks.io
+      - name: Oras Attach SBOM
+        continue-on-error: true
+        uses: ./.github/actions/oras-attach
         with:
-          app_name: 'net-monitor'
-          # framework: ${{ matrix.framework }}
-          acr_registry: ${{ env.acr_reg }}
-          acr_repo: ${{ env.acr_repo }}
-          subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+          artifact: ' _manifest/spdx_2.2/manifest.spdx.json'
+          image: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+      - name: Sign SBOM
+        continue-on-error: true
+        uses: ./.github/actions/signing
+        with:
+          artifact: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
+          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
 
       # - name: Run Trivy vulnerability scanner
       #   uses: aquasecurity/trivy-action@master
@@ -129,7 +133,7 @@ jobs:
       #   with:
       #     sarif_file: 'trivy-results.sarif'
 
-      - name: Vulnerability Scan (Trivy) and Push to ACR
+      - name: Vulnerability Scan (Trivy) and Push to Registry
         uses: ./.github/actions/vulnerability-scanning
         with:
           acr_registry: ${{ env.acr_reg }}
@@ -138,27 +142,37 @@ jobs:
           app_name: 'net-monitor'
           subject_img: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
 
-      - name: Notation Sign inline script
-        continue-on-error: false
-        run: |
-          # export NOTATION_USERNAME="00000000-0000-0000-0000-000000000000"
-          # export NOTATION_PASSWORD=${{ secrets.NOTATION_PASSWORD }}
-          notation sign --envelope-type cose --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-          # notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json 
-
-      - name: Sign SBOM
-        uses: ./.github/actions/signing
-        with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
-          acr_name: ${{ secrets.AZURE_ACR_NAME }}
-          manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
-
       - name: Sign Vulnerability Scan
         uses: ./.github/actions/signing
         with:
-          artifact: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+          artifact: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
           acr_name: ${{ secrets.AZURE_ACR_NAME }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+
+      # TODO: Figure out least amount of configuration needed for oras copy to work to push to ACR
+      # - name: Login to ACR
+      #   uses: docker/login-action@v2
+      #   with:
+      #     registry: ${{ env.acr_reg }}
+      #     username: ${{ secrets.AZURE_NET_MONITOR_SP }}
+      #     password: ${{ secrets.AZURE_CLIENT_SECRET }}
+      # - name: Build and push
+      #   uses: docker/build-push-action@v3
+      #   with:
+      #     context: .
+      #     push: true
+      #     tags: ${{ env.acr_reg }}/${{ env.acr_repo }}:temp
+
+      # - name: Azure Login
+      #   uses: azure/login@v1
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Copy local image and all artifacts to ACR
+        run: |
+          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.acr_reg }}/${{ env.acr_repo }}:${{ env.TAG }} --all --insecure
 
       - name: Log out
         uses: azure/CLI@v1

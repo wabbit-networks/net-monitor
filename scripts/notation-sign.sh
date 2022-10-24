@@ -17,9 +17,9 @@ if [[ -z "$MANIFEST_TYPE" ]]; then
     exit 1
 fi
 
-TOKEN=$(az acr login --name $ACR_NAME --expose-token --output tsv --query accessToken)
+# TOKEN=$(az acr login --name $ACR_NAME --expose-token --output tsv --query accessToken)
 
-export USER_NAME="00000000-0000-0000-0000-000000000000"
-export NOTATION_PASSWORD=$TOKEN
+# export USER_NAME="00000000-0000-0000-0000-000000000000"
+# export NOTATION_PASSWORD=$TOKEN
 
-notation sign --media-type $MANIFEST_TYPE $ARTIFACT
+notation sign --envelope-type cose --media-type $MANIFEST_TYPE $ARTIFACT
