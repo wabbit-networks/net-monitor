@@ -17,7 +17,7 @@ runs:
   steps:
     - uses: actions/checkout@v3
 
-    - name: Attach Artifact - return digest
+    - name: Attach artifact and return digest
       shell: bash
       run: |
         if [[ -z $ARTIFACT_TYPE ]]; then
