@@ -15,8 +15,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3
-
     - name: Sign Artifact
       run: ./scripts/notation-sign.sh
       shell: bash
