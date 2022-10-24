@@ -10,8 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  # NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
-  # NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
   APP_NAME: 'net-monitor'
   TAG: oras
   LOCAL_REGISTRY: 'localhost:5000'
@@ -102,9 +100,12 @@ jobs:
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
 
       - name: Copy local image and all artifacts to ACR
+        env:
+          NOTATION_USERNAME: "00000000-0000-0000-0000-000000000000"
+          NOTATION_PASSWORD: ${{ secrets.NOTATION_PASSWORD }}
         run: |
-          oras login -p ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
           oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -r
+          oras login --password-stdin ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
 
       - name: Log out
         uses: azure/CLI@v1
