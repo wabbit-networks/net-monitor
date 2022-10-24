@@ -170,7 +170,7 @@ jobs:
 
       - name: Copy local image and all artifacts to ACR
         run: |
-          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.acr_reg }}/${{ env.acr_repo }}:${{ env.TAG }} --all --insecure
+          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.acr_reg }}/${{ env.acr_repo }}:${{ env.TAG }} -r
 
       - name: Log out
         uses: azure/CLI@v1
