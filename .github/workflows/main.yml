@@ -11,7 +11,7 @@ on:
 
 env:
   APP_NAME: 'net-monitor'
-  TAG: $GITHUB_REF_NAME
+  TAG: ${{ env.GITHUB_REF_NAME }}
   LOCAL_REGISTRY: 'localhost:5000'
   REMOTE_REGISTRY: 'wabbitnetworks.azurecr.io'
 
