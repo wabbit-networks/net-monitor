@@ -32,7 +32,7 @@ jobs:
 
       - name: Build additional variables for pipeline
         run: |
-          echo TAG=${{ github.github_ref_name }} >> $GITHUB_ENV
+          echo TAG=$GITHUB_REF_NAME >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
