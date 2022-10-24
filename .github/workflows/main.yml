@@ -11,13 +11,12 @@ on:
 
 env:
   APP_NAME: 'net-monitor'
-  TAG: ${{ github.github_ref_name }}
   LOCAL_REGISTRY: 'localhost:5000'
   REMOTE_REGISTRY: 'wabbitnetworks.azurecr.io'
 
 jobs:
   acr:
-    name: "Secure Supply Chain Container Build to ACR"
+    name: "SSC image build to remote registry"
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -30,6 +29,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Build additional variables for pipeline
+        run: |
+          echo TAG=${{ github.github_ref_name }} >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
