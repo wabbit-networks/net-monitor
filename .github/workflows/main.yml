@@ -107,9 +107,9 @@ jobs:
         continue-on-error: true
         run: |
           MSFT_SBOM_VERSION=0.2.6
-          curl -Lo ${{env.RUNNER_TEMP}}/sbom-tool https://github.com/microsoft/sbom-tool/releases/download/v${MSFT_SBOM_VERSION}/sbom-tool-linux-x64
-          chmod +x ${{env.RUNNER_TEMP}}/sbom-tool
-          ${{env.RUNNER_TEMP}}/sbom-tool generate -b . -bc . -pn ${{ env.APP_NAME }} -pv ${{env.TAG}}-${{env.GITHUB_REF_NAME}} -ps 'wabbit-networks-io' -nsb 'https://wabbitnetworks.io'
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/download/v${MSFT_SBOM_VERSION}/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn ${{ env.APP_NAME }} -pv ${{env.TAG}} -ps 'wabbit-networks-io' -nsb 'https://wabbitnetworks.io'
       - name: Oras Attach SBOM
         continue-on-error: false
         uses: ./.github/actions/oras-attach
