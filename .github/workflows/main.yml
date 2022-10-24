@@ -1,0 +1,147 @@
+name: Main
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+  release:
+    types: [released, published]
+  workflow_dispatch:
+
+env:
+  APP_NAME: 'net-monitor'
+  LOCAL_REGISTRY: 'localhost:5000'
+  REMOTE_REGISTRY: 'wabbitnetworks.azurecr.io'
+
+jobs:
+  acr:
+    name: "SSC image build to remote registry"
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    services:
+      oci-registry:
+        image: ghcr.io/oras-project/registry:v1.0.0-rc.2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build additional variables for pipeline
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "TAG=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          else
+            echo TAG=$GITHUB_REF_NAME >> $GITHUB_ENV
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Install oras
+        run: |
+          ORAS_VERSION=0.15.1
+          curl -Lo oras.tar.gz https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz
+          tar -zxf oras.tar.gz oras
+          mv oras /usr/local/bin/oras
+
+      - name: Docker build and push net-monitor image
+        shell: bash
+        run: |
+          docker build --build-arg TEXT="This image has an attached SBOM and vuln scan. Image and all artifacts are signed with notation." -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
+          docker push ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        if: github.event_name != 'pull_request'
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}   
+      - name: Setup Notation with azure-kv plugin
+        uses: Duffney/setup-notation@v0.1.1
+        if: github.event_name != 'pull_request'
+        with:
+          version: '0.11.0-alpha.4'
+          key_name: 'wabbit-networks-io'
+          certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
+          plugin_name: 'notation-azure-kv'
+          plugin_version: '0.4.0-alpha.4'
+      - name: Setup Notation with local temp key
+        uses: Duffney/setup-notation@v0.1.1
+        if: github.event_name == 'pull_request'
+        with:
+          version: '0.11.0-alpha.4'
+          key_name: 'wabbit-networks-io'
+      - name: Notation sign image
+        continue-on-error: true
+        run: |
+          notation sign --envelope-type cose --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
+
+      - name: Install and Generate SBOM
+        run: |
+          MSFT_SBOM_VERSION=0.2.6
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/download/v${MSFT_SBOM_VERSION}/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          $RUNNER_TEMP/sbom-tool generate -b . -bc . -pn ${{ env.APP_NAME }} -pv ${{env.TAG}} -ps 'wabbit-networks-io' -nsb 'https://wabbitnetworks.io'
+      - name: Oras Attach SBOM
+        uses: ./.github/actions/oras-attach
+        with:
+          artifact: '_manifest/spdx_2.2/manifest.spdx.json'
+          subject_img: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          media_type: application/spdx+json
+      - name: Notation sign SBOM
+        run: |
+          notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
+          oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
+
+      - name: Install trivy and generate vuln scan
+        run: |
+          TRIVY_VERSION=0.32.1
+          curl -Lo trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
+          tar xvzf trivy.tar.gz trivy
+          mv trivy /usr/local/bin/trivy
+          trivy image -f sarif -o trivy-results.sarif --exit-code 0 ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+      # - name: Upload Trivy scan results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v2
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
+      - name: Oras attach vuln scan
+        uses: ./.github/actions/oras-attach
+        with:
+          artifact: 'trivy-results.sarif'
+          subject_img: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          media_type: application/sarif+json
+      - name: Notation sign vuln scan
+        run: |
+          notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
+          oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
+
+      - name: Login to ACR
+        uses: docker/login-action@v2
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REMOTE_REGISTRY }}
+          username: ${{ secrets.AZURE_NET_MONITOR_SP }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Copy local image and all artifacts to remote registry
+        if: github.event_name != 'pull_request'
+        run: |
+          oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -r
+          oras discover ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
+
+      - name: Log out
+        uses: azure/CLI@v1
+        if: github.event_name != 'pull_request'
+        with:
+          inlineScript: |
+            az logout
+            az cache purge
+            az account clear
