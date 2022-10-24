@@ -18,6 +18,7 @@ runs:
     - uses: actions/checkout@v3
 
     - name: Attach Artifact - return digest
+      shell: bash
       run: |
         if [[ -z $ARTIFACT_TYPE ]]; then
           case $MEDIA_TYPE in
