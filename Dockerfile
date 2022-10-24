@@ -1,5 +1,6 @@
-# example: docker run net-monitor 
-# example: docker run net-monitor azurecr.io
 FROM alpine
-ENTRYPOINT [ "/bin/ping", "-c", "3" ]
-CMD ["localhost"]
+ARG SLEEP="30m"
+ARG TEXT="Local net-monitor docker image text no arguments"
+RUN echo $TEXT 'now sleeping for' $SLEEP 'at:' >message.txt
+RUN echo $SLEEP >sleep.txt
+CMD cat message.txt && date && sleep $(cat sleep.txt)
