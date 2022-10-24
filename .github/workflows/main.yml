@@ -115,8 +115,9 @@ jobs:
         uses: ./.github/actions/oras-attach
         with:
           artifact: ' _manifest/spdx_2.2/manifest.spdx.json'
-          image: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          subject_img: ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
           manifest_type: application/vnd.cncf.oras.artifact.manifest.v1+json
+          media_type: application/spdx+json
       - name: Sign SBOM
         continue-on-error: true
         uses: ./.github/actions/signing
