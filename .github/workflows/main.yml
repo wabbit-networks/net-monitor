@@ -137,8 +137,8 @@ jobs:
         run: |
           TRIVY_VERSION=0.32.1
           curl -Lo trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz
-          tar xvzf trivy.tar.gz /usr/local/bin/trivy
-          # chmod +x $RUNNER_TEMP/trivy
+          tar xvzf trivy.tar.gz trivy
+          cp trivy /usr/local/bin/trivy
           trivy image -f sarif -o trivy-results.sarif --exit-code 0 ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
       - name: Oras attach vuln scan
         uses: ./.github/actions/oras-attach
