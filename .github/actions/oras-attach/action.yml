@@ -15,8 +15,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
     - name: Attach artifact and return digest
       shell: bash
       run: |
