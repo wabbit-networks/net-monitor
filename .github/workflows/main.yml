@@ -115,7 +115,6 @@ jobs:
 
       - name: Copy local image and all artifacts to remote registry
         run: |
-          # oras login -u "00000000-0000-0000-0000-000000000000" --password-stdin ${{ secrets.NOTATION_PASSWORD }} ${{ env.REMOTE_REGISTRY }}
           oras copy ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -r
           oras discover ${{ env.REMOTE_REGISTRY }}/github/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
 
