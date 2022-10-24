@@ -11,7 +11,7 @@ on:
 
 env:
   APP_NAME: 'net-monitor'
-  TAG: oras
+  TAG: $GITHUB_REF_NAME
   LOCAL_REGISTRY: 'localhost:5000'
   REMOTE_REGISTRY: 'wabbitnetworks.azurecr.io'
 
@@ -44,7 +44,7 @@ jobs:
       - name: Docker build and push net-monitor image
         shell: bash
         run: |
-          docker build -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
+          docker build --build-arg TEXT="This image has an attached SBOM and vuln scan. Image and all artifacts are signed with notation." -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
           docker push ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
 
       - name: Azure Login
