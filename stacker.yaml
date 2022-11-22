@@ -1,0 +1,8 @@
+${{APP_NAME}}:
+  from:
+    type: docker
+    url: docker://alpine:latest
+  run: |
+    echo ${{TEXT}} 'now sleeping for' ${{SLEEP}} 'at:' >message.txt
+    echo ${{SLEEP}} >sleep.txt
+  full_command: cat message.txt && date && sleep $(cat sleep.txt)

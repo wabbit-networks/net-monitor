@@ -25,7 +25,7 @@ jobs:
       contents: write
     services:
       oci-registry:
-        image: ghcr.io/oras-project/registry:v1.0.0-rc.2
+        image: ghcr.io/project-zot/zot-minimal-linux-amd64:latest
         ports:
           - 5000:5000
     steps:
@@ -40,9 +40,6 @@ jobs:
             echo TAG=$GITHUB_REF_NAME >> $GITHUB_ENV
           fi
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
       - name: Install oras
         run: |
           ORAS_VERSION=0.15.1
@@ -50,11 +47,16 @@ jobs:
           tar -zxf oras.tar.gz oras
           mv oras /usr/local/bin/oras
 
-      - name: Docker build and push net-monitor image
-        shell: bash
-        run: |
-          docker build --build-arg TEXT="This image has an attached SBOM and vuln scan. Image and all artifacts are signed with notation." -t ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} .
-          docker push ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+      - name: Stacker build and push net-monitor image
+        uses: project-stacker/stacker-build-push-action@main
+        with:
+          build-args: |
+            TEXT="This image has an attached SBOM and vuln scan. Image and all artifacts are signed with notation."
+            SLEEP="30m"
+            APP_NAME=${{ env.APP_NAME }}
+          url: docker://${{ env.LOCAL_REGISTRY }}
+          tags: ${{ env.TAG }}
+          skip-tls: true
 
       - name: Azure Login
         uses: azure/login@v1
@@ -67,7 +69,7 @@ jobs:
         uses: Duffney/setup-notation@v0.1.1
         if: github.event_name != 'pull_request'
         with:
-          version: '0.11.0-alpha.4'
+          version: 'v0.12.0-beta.1'
           key_name: 'wabbit-networks-io'
           certificate_key_id: ${{ secrets.NOTATION_KEY_ID }}
           plugin_name: 'notation-azure-kv'
@@ -76,12 +78,12 @@ jobs:
         uses: Duffney/setup-notation@v0.1.1
         if: github.event_name == 'pull_request'
         with:
-          version: '0.11.0-alpha.4'
+          version: 'v0.12.0-beta.1'
           key_name: 'wabbit-networks-io'
       - name: Notation sign image
         continue-on-error: true
         run: |
-          notation sign --envelope-type cose --media-type application/vnd.docker.distribution.manifest.v2+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
+          notation sign --plain-http --signature-format cose ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.TAG }} -o tree
 
       - name: Install and Generate SBOM
@@ -98,7 +100,7 @@ jobs:
           media_type: application/spdx+json
       - name: Notation sign SBOM
         run: |
-          notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
+          notation sign --plain-http --signature-format cose ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
 
       - name: Install trivy and generate vuln scan
@@ -120,7 +122,7 @@ jobs:
           media_type: application/sarif+json
       - name: Notation sign vuln scan
         run: |
-          notation sign --envelope-type cose --media-type application/vnd.cncf.oras.artifact.manifest.v1+json ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
+          notation sign --plain-http --signature-format cose ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }}
           oras discover ${{ env.LOCAL_REGISTRY }}/${{ env.APP_NAME }}:${{ env.PUSHED_DIGEST }} -o tree
 
       - name: Login to ACR
