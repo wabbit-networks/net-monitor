@@ -64,7 +64,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}   
       - name: Setup Notation with azure-kv plugin
-        uses: Duffney/setup-notation@v0.1.1
+        uses: Duffney/setup-notation@v0.12.0
         if: github.event_name != 'pull_request'
         with:
           version: '0.11.0-alpha.4'
@@ -73,7 +73,7 @@ jobs:
           plugin_name: 'notation-azure-kv'
           plugin_version: '0.4.0-alpha.4'
       - name: Setup Notation with local temp key
-        uses: Duffney/setup-notation@v0.1.1
+        uses: Duffney/setup-notation@v0.12.0
         if: github.event_name == 'pull_request'
         with:
           version: '0.11.0-alpha.4'
